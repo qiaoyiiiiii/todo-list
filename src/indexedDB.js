@@ -74,6 +74,39 @@ export function saveTodo(todo) {
   });
 }
 
+export function getTodoTabCounts() {
+  return withStore(TODO_STORE, 'readonly', (store) => {
+    return new Promise((resolve, reject) => {
+      const counts = { todo: 0, expired: 0, done: 0 };
+      const now = Date.now();
+      const index = store.index('status');
+      const request = index.openCursor();
+
+      request.onsuccess = (event) => {
+        const cursor = event.target.result;
+        if (cursor) {
+          const value = cursor.value;
+          const status = value.status;
+          const dueMs = value.dueDate ? new Date(value.dueDate).getTime() : null;
+
+          if (status === 'done') {
+            counts.done += 1;
+          } else if (dueMs && dueMs < now) {
+            counts.expired += 1;
+          } else {
+            counts.todo += 1;
+          }
+          cursor.continue();
+        } else {
+          resolve(counts);
+        }
+      };
+
+      request.onerror = () => reject(request.error);
+    });
+  });
+}
+
 export function deleteTodo(id) {
   return withStore(TODO_STORE, 'readwrite', (store) => {
     store.delete(id);
@@ -104,6 +137,18 @@ export function saveDraft(id, draft) {
 export function deleteDraft(id) {
   return withStore(DRAFT_STORE, 'readwrite', (store) => {
     store.delete(id);
+  });
+}
+
+
+export function getTodosByStatus(status) {
+  return withStore(TODO_STORE, 'readonly', (store) => {
+    const index = store.index('status');
+    return new Promise((resolve, reject) => {
+      const request = index.getAll(IDBKeyRange.only(status));
+      request.onsuccess = () => resolve(request.result || []);
+      request.onerror = () => reject(request.error);
+    });
   });
 }
 
