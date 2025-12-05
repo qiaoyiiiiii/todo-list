@@ -5,7 +5,6 @@
       :style="{ height: containerHeight + 'px' }"
       @scroll.passive="handleScroll"
     >
-      <div class="virtual-list-phantom" :style="{ height: totalHeight }"></div>
       <div
         class="virtual-list-content"
         :style="{ transform: 'translateY(' + paddingTop + 'px)' }"
@@ -120,7 +119,7 @@ const props = defineProps({
     default: 82,
   },
   totalHeight: {
-    type: String,
+    type: Number,
     default: "auto",
   },
   paddingTop: {

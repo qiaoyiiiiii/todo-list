@@ -45,7 +45,11 @@
       </el-select>
     </div>
 
-    <div ref="listContainerRef">
+    <div
+      ref="listContainerRef"
+      class="virtual-list-container"
+      :style="{ height: state.containerHeight + 'px' }"
+    >
       <TodoList
         :items="virtualVisibleTodos"
         :item-height="state.itemHeight"
@@ -120,8 +124,8 @@ const state = reactive({
 
 const listContainerRef = ref(null);
 let resizeHandler = null;
-let expireTimer = null; // 新：用于 setTimeout 调度最近到期项的检查
-let visibilityHandler = null; // 新：可见性变化处理函数
+let expireTimer = null;
+let visibilityHandler = null;
 
 const distinctCategories = computed(() => {
   const set = new Set();
@@ -136,7 +140,6 @@ async function refreshTabCounts() {
     const counts = await getTodoTabCounts();
     state.tabCounts = counts;
   } catch (e) {
-    // 使用统一错误提示
     showError(e, { defaultMsg: "获取统计失败" });
   }
 }
@@ -211,23 +214,21 @@ const visibleCount = computed(() => {
 const startIndex = computed(() => {
   if (!useVirtual.value) return 0;
   const idx = Math.floor(state.scrollTop / state.itemHeight);
-  return Math.max(
-    0,
-    Math.min(idx, Math.max(filteredTodos.value.length - 1, 0))
-  );
+  const maxStart = Math.max(filteredTodos.value.length - visibleCount.value, 0);
+  return Math.max(0, Math.min(idx, maxStart));
 });
 
 const endIndex = computed(() => {
   if (!useVirtual.value) return filteredTodos.value.length;
-  return Math.min(
-    filteredTodos.value.length,
-    startIndex.value + visibleCount.value
-  );
+  const end = startIndex.value + visibleCount.value;
+  return Math.min(filteredTodos.value.length, Math.max(end, startIndex.value));
 });
 
 const virtualVisibleTodos = computed(() => {
   if (!useVirtual.value) return filteredTodos.value;
-  return filteredTodos.value.slice(startIndex.value, endIndex.value);
+  const s = Math.max(0, startIndex.value);
+  const e = Math.max(s, endIndex.value);
+  return filteredTodos.value.slice(s, e);
 });
 
 const paddingTop = computed(() => {
@@ -238,16 +239,12 @@ const paddingTop = computed(() => {
 // const paddingBottom = computed(() => {
 //   if (!useVirtual.value) return 0;
 //   const total = filteredTodos.value.length * state.itemHeight;
-//   const visibleHeight =
-//     (endIndex.value - startIndex.value) * state.itemHeight;
+//   const visibleHeight = (endIndex.value - startIndex.value) * state.itemHeight;
 //   return Math.max(total - paddingTop.value - visibleHeight, 0);
 // });
 
 const totalHeight = computed(() => {
-  if (!useVirtual.value) {
-    return "auto";
-  }
-  return `${filteredTodos.value.length * state.itemHeight}px`;
+  return filteredTodos.value.length * state.itemHeight;
 });
 
 function handleScroll(e) {
@@ -324,9 +321,9 @@ async function confirmSave() {
       showError(e, { defaultMsg: "更新提醒失败" });
     }
     // 新增：保存后重新调度到期检查
-    scheduleNextExpireCheck().catch(() => {
-      showError(e, { defaultMsg: "调度到期检查失败" });
-    });
+    scheduleNextExpireCheck().catch((err) =>
+      showError(err, { defaultMsg: "调度到期检查失败" })
+    );
 
     ElMessage.success("保存成功");
   } catch (e) {
@@ -358,9 +355,9 @@ async function handleDelete(row) {
     await deleteDraft(row.id);
     await refreshTabCounts();
     await loadTodosForTab(state.activeTab);
-    scheduleNextExpireCheck().catch(() => {
-      showError(e, { defaultMsg: "调度到期检查失败" });
-    });
+    scheduleNextExpireCheck().catch((err) =>
+      showError(err, { defaultMsg: "调度到期检查失败" })
+    );
     ElMessage.success("已删除");
   } catch (e) {
     showError(e, { defaultMsg: "删除失败" });
@@ -401,9 +398,9 @@ async function toggleComplete(row) {
     await saveTodo(copy);
     await refreshTabCounts();
     await loadTodosForTab(state.activeTab);
-    scheduleNextExpireCheck().catch(() => {
-      showError(e, { defaultMsg: "调度到期检查失败" });
-    });
+    scheduleNextExpireCheck().catch((err) =>
+      showError(err, { defaultMsg: "调度到期检查失败" })
+    );
     ElMessage.success("已更新状态");
     try {
       if (copy.status === "done") reminder.remove(copy.id);
@@ -513,7 +510,9 @@ onMounted(() => {
     };
     document.addEventListener("visibilitychange", visibilityHandler);
 
-    scheduleNextExpireCheck().catch(() => {});
+    scheduleNextExpireCheck().catch((err) =>
+      showError(err, { defaultMsg: "调度到期检查失败" })
+    );
   } catch (e) {
     showError(e, { defaultMsg: "启动到期检查失败" });
   }
@@ -560,6 +559,7 @@ body {
   max-width: 1200px;
   margin: 0 auto;
   padding: 16px 24px 24px;
+  height: 100vh;
 }
 
 .todo-header {
