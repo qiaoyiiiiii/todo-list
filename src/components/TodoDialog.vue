@@ -1,0 +1,134 @@
+<template>
+  <el-dialog
+    v-model="visible"
+    :title="isEditingExisting ? '编辑待办事项' : '新建待办事项'"
+    width="600px"
+    @close="handleClose"
+  >
+    <div v-if="todo">
+      <el-form label-width="90px" :model="todo">
+        <el-form-item label="标题" required>
+          <el-input
+            v-model="todo.title"
+            placeholder="请输入标题"
+          />
+        </el-form-item>
+        <el-form-item label="描述">
+          <el-input
+            v-model="todo.description"
+            type="textarea"
+            :rows="4"
+            placeholder="可选：补充一些说明，正在编辑时会自动本地保存"
+          />
+        </el-form-item>
+        <el-form-item label="分类">
+          <el-select
+            v-model="todo.category"
+            allow-create
+            filterable
+            default-first-option
+            placeholder="选择或输入分类，如 工作 / 学习 / 生活"
+          >
+            <el-option
+              v-for="c in distinctCategories"
+              :key="c"
+              :label="c"
+              :value="c"
+            />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="优先级">
+          <el-slider
+            v-model="todo.priority"
+            :min="1"
+            :max="5"
+            :step="1"
+            show-stops
+          />
+        </el-form-item>
+        <el-form-item label="截止时间">
+          <el-date-picker
+            v-model="todo.dueDate"
+            type="datetime"
+            placeholder="可选：选择截止时间"
+            value-format="YYYY-MM-DDTHH:mm:ss.SSS[Z]"
+          />
+        </el-form-item>
+      </el-form>
+      <div style="font-size: 12px; color: #909399; margin-top: 8px">
+        编辑内容会自动定时保存到 IndexedDB，本地刷新/断网也不会丢失。
+      </div>
+    </div>
+    <template #footer>
+      <span class="dialog-footer">
+        <el-button @click="handleClose">取 消</el-button>
+        <el-button
+          type="primary"
+          :loading="saving"
+          @click="handleSaveClick"
+        >
+          保 存
+        </el-button>
+      </span>
+    </template>
+  </el-dialog>
+</template>
+
+<script setup>
+import { computed } from 'vue';
+import { ElMessage } from 'element-plus';
+
+const props = defineProps({
+  modelValue: {
+    type: Boolean,
+    default: false,
+  },
+  todo: {
+    type: Object,
+    default: null,
+  },
+  distinctCategories: {
+    type: Array,
+    default: () => [],
+  },
+  saving: {
+    type: Boolean,
+    default: false,
+  },
+  isEditingExisting: {
+    type: Boolean,
+    default: false,
+  },
+});
+
+const emit = defineEmits(['update:modelValue', 'save', 'close']);
+
+const visible = computed({
+  get() {
+    return props.modelValue;
+  },
+  set(val) {
+    emit('update:modelValue', val);
+  },
+});
+
+function handleClose() {
+  emit('update:modelValue', false);
+  emit('close');
+}
+
+function handleSaveClick() {
+  const todo = props.todo;
+  if (todo && todo.dueDate) {
+    const now = new Date();
+    const due = new Date(todo.dueDate);
+    if (due.getTime() < now.getTime()) {
+      ElMessage.error('截止时间必须大于等于当前时间');
+      return;
+    }
+  }
+  emit('save');
+}
+</script>
+
+
