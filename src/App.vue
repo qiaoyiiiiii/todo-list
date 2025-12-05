@@ -47,8 +47,7 @@
 
     <div
       ref="listContainerRef"
-      class="virtual-list-container"
-      :style="{ height: state.containerHeight + 'px' }"
+      :style="{ height: state.containerHeight + 'px', overflowy: 'auto' }"
     >
       <TodoList
         :items="virtualVisibleTodos"
@@ -556,10 +555,8 @@ body {
 }
 
 .todo-container {
-  max-width: 1200px;
+  max-width: 80vw;
   margin: 0 auto;
-  padding: 16px 24px 24px;
-  height: 100vh;
 }
 
 .todo-header {
@@ -590,12 +587,6 @@ body {
   background: #ffffff;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
   padding: 8px 0;
-}
-
-.virtual-list-container {
-  position: relative;
-  height: 520px;
-  overflow-y: auto;
 }
 
 .virtual-list-phantom {
