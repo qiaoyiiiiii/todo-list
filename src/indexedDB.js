@@ -1,0 +1,110 @@
+const DB_NAME = 'todo_app_db';
+const DB_VERSION = 1;
+const TODO_STORE = 'todos';
+const DRAFT_STORE = 'drafts';
+
+function openDB() {
+  return new Promise((resolve, reject) => {
+    const request = indexedDB.open(DB_NAME, DB_VERSION);
+
+    request.onerror = () => {
+      reject(request.error);
+    };
+
+    request.onsuccess = () => {
+      resolve(request.result);
+    };
+
+    request.onupgradeneeded = (event) => {
+      const db = event.target.result;
+
+      if (!db.objectStoreNames.contains(TODO_STORE)) {
+        const todoStore = db.createObjectStore(TODO_STORE, {
+          keyPath: 'id',
+        });
+        todoStore.createIndex('status', 'status', { unique: false });
+        todoStore.createIndex('dueDate', 'dueDate', { unique: false });
+        todoStore.createIndex('createdAt', 'createdAt', { unique: false });
+      }
+
+      if (!db.objectStoreNames.contains(DRAFT_STORE)) {
+        db.createObjectStore(DRAFT_STORE, {
+          keyPath: 'id',
+        });
+      }
+    };
+  });
+}
+
+function withStore(storeName, mode, callback) {
+  return openDB().then(
+    (db) =>
+      new Promise((resolve, reject) => {
+        const tx = db.transaction(storeName, mode);
+        const store = tx.objectStore(storeName);
+        const result = callback(store);
+
+        tx.oncomplete = () => resolve(result);
+        tx.onerror = () => reject(tx.error);
+        tx.onabort = () => reject(tx.error);
+      }),
+  );
+}
+
+export function getAllTodos() {
+  return withStore(TODO_STORE, 'readonly', (store) => {
+    return new Promise((resolve, reject) => {
+      const request = store.getAll();
+      request.onsuccess = () => resolve(request.result || []);
+      request.onerror = () => reject(request.error);
+    });
+  });
+}
+
+export function saveTodo(todo) {
+  const now = new Date().toISOString();
+  const data = {
+    ...todo,
+    updatedAt: now,
+    createdAt: todo.createdAt || now,
+  };
+
+  return withStore(TODO_STORE, 'readwrite', (store) => {
+    store.put(data);
+  });
+}
+
+export function deleteTodo(id) {
+  return withStore(TODO_STORE, 'readwrite', (store) => {
+    store.delete(id);
+  });
+}
+
+export function getDraft(id) {
+  return withStore(DRAFT_STORE, 'readonly', (store) => {
+    return new Promise((resolve, reject) => {
+      const request = store.get(id);
+      request.onsuccess = () => resolve(request.result || null);
+      request.onerror = () => reject(request.error);
+    });
+  });
+}
+
+export function saveDraft(id, draft) {
+  const data = {
+    id,
+    content: draft,
+    updatedAt: new Date().toISOString(),
+  };
+  return withStore(DRAFT_STORE, 'readwrite', (store) => {
+    store.put(data);
+  });
+}
+
+export function deleteDraft(id) {
+  return withStore(DRAFT_STORE, 'readwrite', (store) => {
+    store.delete(id);
+  });
+}
+
+
