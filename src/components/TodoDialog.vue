@@ -127,6 +127,10 @@ function handleSaveClick() {
       return;
     }
   }
+  if (!todo || !todo.title) {
+    ElMessage.warning('标题不能为空');
+    return;
+  }
   emit('save');
 }
 </script>
