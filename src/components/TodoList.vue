@@ -5,10 +5,7 @@
       :style="{ height: containerHeight + 'px' }"
       @scroll.passive="handleScroll"
     >
-      <div
-        class="virtual-list-phantom"
-        :style="{ height: totalHeight }"
-      ></div>
+      <div class="virtual-list-phantom" :style="{ height: totalHeight }"></div>
       <div
         class="virtual-list-content"
         :style="{ transform: 'translateY(' + paddingTop + 'px)' }"
@@ -17,7 +14,11 @@
           <div
             v-for="item in items"
             :key="item.id"
-            :class="['todo-item', priorityClass(item)]"
+            :class="[
+              'todo-item',
+              priorityClass(item),
+              { 'reminder-alert': isNearDeadline(item) },
+            ]"
             :style="{ height: itemHeight - 2 + 'px' }"
           >
             <div class="todo-main">
@@ -27,7 +28,7 @@
                   :class="{ completed: item.status === 'done' }"
                   @click="$emit('edit', item)"
                 >
-                  {{ item.title || '(未命名待办)' }}
+                  {{ item.title || "(未命名待办)" }}
                 </span>
                 <el-tag
                   size="small"
@@ -35,19 +36,15 @@
                     item.status === 'done'
                       ? 'success'
                       : activeTab === 'expired'
-                        ? 'danger'
-                        : 'info'
+                      ? 'danger'
+                      : 'info'
                   "
                 >
                   <span v-if="item.status === 'done'">已完成</span>
                   <span v-else-if="activeTab === 'expired'">已过期</span>
                   <span v-else>待办</span>
                 </el-tag>
-                <el-tag
-                  v-if="item.category"
-                  size="small"
-                  type="warning"
-                >
+                <el-tag v-if="item.category" size="small" type="warning">
                   {{ item.category }}
                 </el-tag>
                 <el-tag
@@ -58,18 +55,19 @@
                   优先级 {{ item.priority || 1 }}
                 </el-tag>
               </div>
-              <div
-                v-if="item.description"
-                class="todo-desc clamp-2"
-              >
+              <div v-if="item.description" class="todo-desc clamp-2">
                 {{ item.description }}
               </div>
               <div class="todo-meta">
-                <span v-if="item.dueDate">截止：{{ formatDate(item.dueDate) }}</span>
+                <span v-if="item.dueDate"
+                  >截止：{{ formatDate(item.dueDate) }}</span
+                >
                 <span v-if="item.completedAt">
                   完成时间：{{ formatDate(item.completedAt) }}
                 </span>
-                <span v-if="item.completeRemark">备注：{{ item.completeRemark }}</span>
+                <span v-if="item.completeRemark"
+                  >备注：{{ item.completeRemark }}</span
+                >
               </div>
             </div>
             <div class="todo-actions">
@@ -109,6 +107,9 @@
 </template>
 
 <script setup>
+import { ref, onMounted, onUnmounted } from "vue";
+import { formatDate } from "../utils/index";
+
 const props = defineProps({
   items: {
     type: Array,
@@ -120,7 +121,7 @@ const props = defineProps({
   },
   totalHeight: {
     type: String,
-    default: 'auto',
+    default: "auto",
   },
   paddingTop: {
     type: Number,
@@ -128,7 +129,7 @@ const props = defineProps({
   },
   activeTab: {
     type: String,
-    default: 'todo',
+    default: "todo",
   },
   containerHeight: {
     type: Number,
@@ -138,10 +139,19 @@ const props = defineProps({
     type: Function,
     default: null,
   },
-  formatDate: {
-    type: Function,
-    required: true,
-  },
+});
+
+const now = ref(Date.now());
+let tick = null;
+
+onMounted(() => {
+  tick = setInterval(() => {
+    now.value = Date.now();
+  }, 5000);
+});
+
+onUnmounted(() => {
+  if (tick) clearInterval(tick);
 });
 
 function handleScroll(e) {
@@ -152,16 +162,25 @@ function handleScroll(e) {
 
 function priorityClass(item) {
   const p = Number(item?.priority || 1);
-  if (p >= 4) return 'priority-high';
-  if (p === 3) return 'priority-mid';
-  return 'priority-low';
+  if (p >= 4) return "priority-high";
+  if (p === 3) return "priority-mid";
+  return "priority-low";
 }
 
 function priorityTagType(priority) {
   const p = Number(priority || 1);
-  if (p >= 4) return 'danger';
-  if (p === 3) return 'warning';
-  return 'info';
+  if (p >= 4) return "danger";
+  if (p === 3) return "warning";
+  return "info";
+}
+
+// 判断是否在 10 分钟内到期
+function isNearDeadline(item) {
+  if (!item || !item.dueDate) return false;
+  if (item.status === "done") return false;
+  const due = new Date(item.dueDate).getTime();
+  const diff = due - now.value;
+  return diff > 0 && diff <= 10 * 60 * 1000;
 }
 </script>
 
@@ -221,6 +240,22 @@ function priorityTagType(priority) {
 
 .priority-low {
   border-left-color: #909399;
+}
+
+.reminder-alert {
+  background: #fff7f0;
+  border-left-color: #f56c6c !important;
+  animation: remind-pulse 2s ease-in-out infinite;
+}
+
+@keyframes remind-pulse {
+  0%,
+  100% {
+    background: #fff7f0;
+  }
+  50% {
+    background: #fff2e8;
+  }
 }
 
 .todo-main {
@@ -313,4 +348,3 @@ function priorityTagType(priority) {
   }
 }
 </style>
-

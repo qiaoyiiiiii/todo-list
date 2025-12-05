@@ -4,16 +4,11 @@
       <div class="todo-header-title">
         <span>TODO List</span>
       </div>
-      <el-button type="primary" @click="openCreateDialog">
-        新建待办
-      </el-button>
+      <el-button type="primary" @click="openCreateDialog"> 新建待办 </el-button>
     </div>
 
     <div class="todo-filters">
-      <el-radio-group
-        :model-value="state.activeTab"
-        @change="handleTabChange"
-      >
+      <el-radio-group :model-value="state.activeTab" @change="handleTabChange">
         <el-radio-button label="todo">
           待办 ({{ state.tabCounts.todo }})
         </el-radio-button>
@@ -59,7 +54,6 @@
         :padding-top="paddingTop"
         :active-tab="state.activeTab"
         :on-scroll="handleScroll"
-        :format-date="formatDate"
         @edit="openEditDialog"
         @toggle-complete="toggleComplete"
         @delete="handleDelete"
@@ -87,9 +81,8 @@ import {
   onMounted,
   onUnmounted,
   nextTick,
-} from 'vue';
-import dayjs from 'dayjs';
-import { ElMessage, ElMessageBox } from 'element-plus';
+} from "vue";
+import { ElMessage, ElMessageBox } from "element-plus";
 import {
   getAllTodos,
   saveTodo,
@@ -99,17 +92,18 @@ import {
   deleteDraft,
   getTodoTabCounts,
   getTodosByStatus,
-} from './indexedDB';
-import TodoList from './components/TodoList.vue';
-import TodoDialog from './components/TodoDialog.vue';
-import { throttle, debounce } from './utils';
+} from "./indexedDB";
+import TodoList from "./components/TodoList.vue";
+import TodoDialog from "./components/TodoDialog.vue";
+import { throttle, debounce, showError } from "./utils";
+import reminder from "./utils/reminder";
 
 const state = reactive({
   loading: false,
   currentTabTodos: [],
-  activeTab: 'todo', // todo / expired / done
-  sortKey: 'createdAtDesc', // createdAtDesc | dueDateAsc | priorityDesc
-  filterCategory: '',
+  activeTab: "todo", // todo / expired / done
+  sortKey: "createdAtDesc", // createdAtDesc | dueDateAsc | priorityDesc
+  filterCategory: "",
   tabCounts: { todo: 0, expired: 0, done: 0 },
 
   dialogVisible: false,
@@ -126,6 +120,8 @@ const state = reactive({
 
 const listContainerRef = ref(null);
 let resizeHandler = null;
+let expireTimer = null; // 新：用于 setTimeout 调度最近到期项的检查
+let visibilityHandler = null; // 新：可见性变化处理函数
 
 const distinctCategories = computed(() => {
   const set = new Set();
@@ -140,7 +136,8 @@ async function refreshTabCounts() {
     const counts = await getTodoTabCounts();
     state.tabCounts = counts;
   } catch (e) {
-    console.error('获取统计失败', e);
+    // 使用统一错误提示
+    showError(e, { defaultMsg: "获取统计失败" });
   }
 }
 
@@ -149,11 +146,11 @@ async function loadTodosForTab(tab = state.activeTab) {
   try {
     let list = [];
     const now = new Date();
-    if (tab === 'done') {
-      list = await getTodosByStatus('done');
+    if (tab === "done") {
+      list = await getTodosByStatus("done");
     } else {
-      list = await getTodosByStatus('todo');
-      if (tab === 'expired') {
+      list = await getTodosByStatus("todo");
+      if (tab === "expired") {
         list = list.filter((t) => t.dueDate && new Date(t.dueDate) < now);
       } else {
         list = list.filter((t) => !(t.dueDate && new Date(t.dueDate) < now));
@@ -161,8 +158,8 @@ async function loadTodosForTab(tab = state.activeTab) {
     }
     state.currentTabTodos = list;
   } catch (e) {
-    console.error('加载分组选项卡数据失败', e);
-    ElMessage.error('加载失败');
+    // 使用统一错误提示
+    showError(e, { defaultMsg: "加载失败" });
   } finally {
     state.loading = false;
   }
@@ -179,16 +176,16 @@ function updateContainerHeight() {
 
 function sortTodos(list) {
   const arr = [...list];
-  if (state.sortKey === 'createdAtDesc') {
-    arr.sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
-  } else if (state.sortKey === 'dueDateAsc') {
+  if (state.sortKey === "createdAtDesc") {
+    arr.sort((a, b) => (b.createdAt || "").localeCompare(a.createdAt || ""));
+  } else if (state.sortKey === "dueDateAsc") {
     arr.sort((a, b) => {
       if (!a.dueDate && !b.dueDate) return 0;
       if (!a.dueDate) return 1;
       if (!b.dueDate) return -1;
       return a.dueDate.localeCompare(b.dueDate);
     });
-  } else if (state.sortKey === 'priorityDesc') {
+  } else if (state.sortKey === "priorityDesc") {
     arr.sort((a, b) => (b.priority || 0) - (a.priority || 0));
   }
   return arr;
@@ -214,14 +211,17 @@ const visibleCount = computed(() => {
 const startIndex = computed(() => {
   if (!useVirtual.value) return 0;
   const idx = Math.floor(state.scrollTop / state.itemHeight);
-  return Math.max(0, Math.min(idx, Math.max(filteredTodos.value.length - 1, 0)));
+  return Math.max(
+    0,
+    Math.min(idx, Math.max(filteredTodos.value.length - 1, 0))
+  );
 });
 
 const endIndex = computed(() => {
   if (!useVirtual.value) return filteredTodos.value.length;
   return Math.min(
     filteredTodos.value.length,
-    startIndex.value + visibleCount.value,
+    startIndex.value + visibleCount.value
   );
 });
 
@@ -245,7 +245,7 @@ const paddingTop = computed(() => {
 
 const totalHeight = computed(() => {
   if (!useVirtual.value) {
-    return 'auto';
+    return "auto";
   }
   return `${filteredTodos.value.length * state.itemHeight}px`;
 });
@@ -269,21 +269,21 @@ function handleTabChange(val) {
 function newEmptyTodo() {
   return {
     id: `todo_${Date.now()}_${Math.random().toString(16).slice(2)}`,
-    title: '',
-    description: '',
-    category: '',
+    title: "",
+    description: "",
+    category: "",
     priority: 1,
-    dueDate: '',
-    status: 'todo',
-    completeRemark: '',
-    completedAt: '',
+    dueDate: "",
+    status: "todo",
+    completeRemark: "",
+    completedAt: "",
   };
 }
 
 async function openCreateDialog() {
   state.isEditingExisting = false;
   const todo = newEmptyTodo();
-  const draft = await getDraft('new_todo').catch(() => null);
+  const draft = await getDraft("new_todo").catch(() => null);
   if (draft && draft.content) {
     Object.assign(todo, draft.content);
   }
@@ -308,18 +308,29 @@ async function confirmSave() {
   state.saving = true;
   try {
     const data = { ...state.editingTodo };
+    console.log(data);
     await saveTodo(data);
-    await deleteDraft(state.isEditingExisting ? data.id : 'new_todo');
+    await deleteDraft(state.isEditingExisting ? data.id : "new_todo");
 
     state.dialogVisible = false;
     state.editingTodo = null;
     state.isEditingExisting = false;
     await refreshTabCounts();
     await loadTodosForTab(state.activeTab);
-    ElMessage.success('保存成功');
+    // 保存后更新/调度提醒
+    try {
+      reminder.update(data);
+    } catch (e) {
+      showError(e, { defaultMsg: "更新提醒失败" });
+    }
+    // 新增：保存后重新调度到期检查
+    scheduleNextExpireCheck().catch(() => {
+      showError(e, { defaultMsg: "调度到期检查失败" });
+    });
+
+    ElMessage.success("保存成功");
   } catch (e) {
-    console.error(e);
-    ElMessage.error('保存失败');
+    showError(e, { defaultMsg: "保存失败" });
   } finally {
     state.saving = false;
   }
@@ -332,55 +343,56 @@ function handleDialogClose() {
 
 async function handleDelete(row) {
   try {
-    await ElMessageBox.confirm(
-      '确认删除该待办事项吗？',
-      '提示',
-      {
-        type: 'warning',
-      },
-    );
+    await ElMessageBox.confirm("确认删除该待办事项吗？", "提示", {
+      type: "warning",
+    });
   } catch {
     return;
   }
 
   try {
+    try {
+      reminder.remove(row.id);
+    } catch (e) {}
     await deleteTodo(row.id);
     await deleteDraft(row.id);
     await refreshTabCounts();
     await loadTodosForTab(state.activeTab);
-    ElMessage.success('已删除');
+    scheduleNextExpireCheck().catch(() => {
+      showError(e, { defaultMsg: "调度到期检查失败" });
+    });
+    ElMessage.success("已删除");
   } catch (e) {
-    console.error(e);
-    ElMessage.error('删除失败');
+    showError(e, { defaultMsg: "删除失败" });
   }
 }
 
 async function toggleComplete(row) {
   const copy = { ...row };
-  if (row.status === 'done') {
-    copy.status = 'todo';
-    copy.completeRemark = '';
-    copy.completedAt = '';
+  if (row.status === "done") {
+    copy.status = "todo";
+    copy.completeRemark = "";
+    copy.completedAt = "";
   } else {
-    let value = '';
+    let value = "";
     try {
       const res = await ElMessageBox.prompt(
-        '可以填写完成备注（可选）：',
-        '标记完成',
+        "可以填写完成备注（可选）：",
+        "标记完成",
         {
-          inputPlaceholder: '比如：已提交、已复习完等',
-          inputType: 'textarea',
+          inputPlaceholder: "比如：已提交、已复习完等",
+          inputType: "textarea",
           showCancelButton: true,
-          confirmButtonText: '确定',
-          cancelButtonText: '取消',
-        },
+          confirmButtonText: "确定",
+          cancelButtonText: "取消",
+        }
       );
-      value = res.value || '';
+      value = res.value || "";
     } catch {
       return;
     }
 
-    copy.status = 'done';
+    copy.status = "done";
     copy.completeRemark = value;
     copy.completedAt = new Date().toISOString();
   }
@@ -389,22 +401,30 @@ async function toggleComplete(row) {
     await saveTodo(copy);
     await refreshTabCounts();
     await loadTodosForTab(state.activeTab);
-    ElMessage.success('已更新状态');
+    scheduleNextExpireCheck().catch(() => {
+      showError(e, { defaultMsg: "调度到期检查失败" });
+    });
+    ElMessage.success("已更新状态");
+    try {
+      if (copy.status === "done") reminder.remove(copy.id);
+      else reminder.update(copy);
+    } catch (e) {
+      showError(e, { defaultMsg: "更新提醒调度失败" });
+    }
   } catch (e) {
-    console.error(e);
-    ElMessage.error('更新失败');
+    showError(e, { defaultMsg: "更新失败" });
   }
 }
 
 const saveDraftDebounced = debounce(async (todo) => {
   if (!todo) return;
-  const key = state.isEditingExisting ? todo.id : 'new_todo';
+  const key = state.isEditingExisting ? todo.id : "new_todo";
   try {
     await saveDraft(key, {
       ...todo,
     });
   } catch (e) {
-    console.error('自动保存草稿失败', e);
+    showError(e, { defaultMsg: "自动保存草稿失败" });
   }
 }, 800);
 
@@ -414,7 +434,7 @@ watch(
     if (!val) return;
     saveDraftDebounced(val);
   },
-  { deep: true },
+  { deep: true }
 );
 
 async function loadTodos() {
@@ -423,10 +443,56 @@ async function loadTodos() {
     await loadTodosForTab(state.activeTab);
     await refreshTabCounts();
   } catch (e) {
-    console.error(e);
-    ElMessage.error('加载本地数据失败');
+    showError(e, { defaultMsg: "加载本地数据失败" });
   } finally {
     state.loading = false;
+  }
+}
+
+async function checkAndRefreshExpired() {
+  try {
+    await refreshTabCounts();
+    await loadTodosForTab(state.activeTab);
+  } catch (e) {
+    showError(e, { defaultMsg: "定时刷新失败" });
+  }
+}
+
+async function scheduleNextExpireCheck() {
+  if (expireTimer) {
+    clearTimeout(expireTimer);
+    expireTimer = null;
+  }
+
+  try {
+    const list = await getTodosByStatus("todo").catch(() => []);
+    const now = Date.now();
+    const ONE_DAY = 24 * 60 * 60 * 1000;
+    let nextTs = null;
+    for (const t of list) {
+      if (t && t.dueDate) {
+        const ts = new Date(t.dueDate).getTime();
+        if (!isNaN(ts) && ts > now && ts - now <= ONE_DAY) {
+          if (nextTs === null || ts < nextTs) nextTs = ts;
+        }
+      }
+    }
+
+    if (nextTs === null) {
+      return;
+    }
+
+    const delay = Math.max(500, nextTs - now + 1000);
+
+    expireTimer = setTimeout(async () => {
+      expireTimer = null;
+      if (!document.hidden) {
+        await checkAndRefreshExpired();
+      }
+      scheduleNextExpireCheck();
+    }, delay);
+  } catch (e) {
+    showError(e, { defaultMsg: "调度到期检查失败" });
   }
 }
 
@@ -436,19 +502,46 @@ onMounted(() => {
     updateContainerHeight();
   });
   resizeHandler = throttle(() => updateContainerHeight(), 200);
-  window.addEventListener('resize', resizeHandler);
+  window.addEventListener("resize", resizeHandler);
+
+  try {
+    visibilityHandler = () => {
+      if (!document.hidden) {
+        checkAndRefreshExpired().catch(() => {});
+        scheduleNextExpireCheck().catch(() => {});
+      }
+    };
+    document.addEventListener("visibilitychange", visibilityHandler);
+
+    scheduleNextExpireCheck().catch(() => {});
+  } catch (e) {
+    showError(e, { defaultMsg: "启动到期检查失败" });
+  }
+
+  try {
+    getAllTodos()
+      .then((all) => {
+        if (Array.isArray(all)) reminder.init(all);
+      })
+      .catch(() => {});
+  } catch (e) {
+    console.warn("reminder init error", e);
+  }
 });
 
 onUnmounted(() => {
   if (resizeHandler) {
-    window.removeEventListener('resize', resizeHandler);
+    window.removeEventListener("resize", resizeHandler);
+  }
+  if (expireTimer) {
+    clearTimeout(expireTimer);
+    expireTimer = null;
+  }
+  if (visibilityHandler) {
+    document.removeEventListener("visibilitychange", visibilityHandler);
+    visibilityHandler = null;
   }
 });
-
-function formatDate(value) {
-  if (!value) return '';
-  return dayjs(value).format('YYYY-MM-DD HH:mm');
-}
 </script>
 
 <style scoped>
@@ -457,9 +550,9 @@ body {
   margin: 0;
   padding: 0;
   height: 100%;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
-    'Helvetica Neue', Arial, 'Noto Sans', 'PingFang SC', 'Hiragino Sans GB',
-    'Microsoft YaHei', sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+    "Helvetica Neue", Arial, "Noto Sans", "PingFang SC", "Hiragino Sans GB",
+    "Microsoft YaHei", sans-serif;
   background-color: #f5f7fa;
 }
 
@@ -585,5 +678,3 @@ body {
   }
 }
 </style>
-
-
