@@ -76,6 +76,7 @@
 </template>
 
 <script setup>
+import "@/styles/common.css"; // 新增：引入公共样式
 import {
   reactive,
   computed,
@@ -556,10 +557,8 @@ body {
   margin: 0;
   padding: 0;
   height: 100%;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
-    "Helvetica Neue", Arial, "Noto Sans", "PingFang SC", "Hiragino Sans GB",
-    "Microsoft YaHei", sans-serif;
-  background-color: #f5f7fa;
+  font-family: var(--font-family);
+  background-color: var(--color-bg-secondary);
 }
 
 .todo-container {
@@ -571,30 +570,30 @@ body {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 16px;
+  margin-bottom: var(--spacing-lg);
 }
 
 .todo-header-title {
-  font-size: 24px;
-  font-weight: 600;
+  font-size: var(--font-size-xl);
+  font-weight: var(--font-weight-bold);
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--spacing-md);
 }
 
 .todo-filters {
   display: flex;
-  gap: 12px;
+  gap: var(--spacing-md);
   align-items: center;
   flex-wrap: wrap;
 }
 
 .todo-list-wrapper {
-  margin-top: 12px;
-  border-radius: 8px;
-  background: #ffffff;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
-  padding: 8px 0;
+  margin-top: var(--spacing-md);
+  border-radius: var(--border-radius-md);
+  background: var(--color-bg-primary);
+  box-shadow: var(--shadow-sm);
+  padding: var(--spacing-xs) 0;
 }
 
 .virtual-list-phantom {
@@ -611,8 +610,8 @@ body {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  padding: 10px 20px;
-  border-bottom: 1px solid #f2f2f2;
+  padding: var(--spacing-md) var(--spacing-lg);
+  border-bottom: 1px solid var(--color-border);
 }
 
 .todo-item:last-child {
@@ -622,44 +621,45 @@ body {
 .todo-main {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: var(--spacing-xs);
   max-width: 70%;
 }
 
 .todo-title-row {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--spacing-md);
 }
 
 .todo-title {
-  font-size: 16px;
-  font-weight: 500;
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-normal);
   cursor: pointer;
+  color: var(--color-text-primary);
 }
 
 .todo-title.completed {
   text-decoration: line-through;
-  color: #999;
+  color: var(--color-text-tertiary);
 }
 
 .todo-meta {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
-  font-size: 12px;
-  color: #909399;
+  gap: var(--spacing-xs);
+  font-size: var(--font-size-sm);
+  color: var(--color-text-tertiary);
 }
 
 .todo-actions {
   display: flex;
-  gap: 8px;
+  gap: var(--spacing-md);
 }
 
 .todo-empty {
   padding: 40px 0;
   text-align: center;
-  color: #c0c4cc;
+  color: var(--color-text-tertiary);
 }
 
 @media (max-width: 768px) {

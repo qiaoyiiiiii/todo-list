@@ -106,6 +106,7 @@
 </template>
 
 <script setup>
+import "@/styles/common.css";
 import { ref, onMounted, onUnmounted } from "vue";
 import { formatDate } from "../utils/index";
 
@@ -173,7 +174,6 @@ function priorityTagType(priority) {
   return "info";
 }
 
-// 判断是否在 10 分钟内到期
 function isNearDeadline(item) {
   if (!item || !item.dueDate) return false;
   if (item.status === "done") return false;
@@ -185,11 +185,11 @@ function isNearDeadline(item) {
 
 <style scoped>
 .todo-list-wrapper {
-  margin-top: 12px;
-  border-radius: 12px;
-  background: #ffffff;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.04);
-  padding: 4px 0;
+  margin-top: var(--spacing-md);
+  border-radius: var(--border-radius-lg);
+  background: var(--color-bg-primary);
+  box-shadow: var(--shadow-md);
+  padding: var(--spacing-xs) 0;
 }
 
 .virtual-list-container {
@@ -213,10 +213,10 @@ function isNearDeadline(item) {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  padding: 12px 20px;
-  border-bottom: 1px solid #f2f2f2;
+  padding: var(--spacing-md) var(--spacing-lg);
+  border-bottom: 1px solid var(--color-border);
   transition: background 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
-  border-left: 4px solid #dcdfe6;
+  border-left: 4px solid var(--color-info);
 }
 
 .todo-item:last-child {
@@ -226,24 +226,24 @@ function isNearDeadline(item) {
 .todo-item:hover {
   background: #f7f9fc;
   transform: translateY(-1px);
-  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.05);
+  box-shadow: var(--shadow-lg);
 }
 
 .priority-high {
-  border-left-color: #f56c6c;
+  border-left-color: var(--color-danger);
 }
 
 .priority-mid {
-  border-left-color: #e6a23c;
+  border-left-color: var(--color-warning);
 }
 
 .priority-low {
-  border-left-color: #909399;
+  border-left-color: var(--color-info);
 }
 
 .reminder-alert {
   background: #fff7f0;
-  border-left-color: #f56c6c !important;
+  border-left-color: var(--color-danger) !important;
   animation: remind-pulse 2s ease-in-out infinite;
 }
 
@@ -260,65 +260,53 @@ function isNearDeadline(item) {
 .todo-main {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: var(--spacing-xs);
   max-width: 70%;
 }
 
 .todo-title-row {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--spacing-md);
   flex-wrap: wrap;
 }
 
 .todo-title {
-  font-size: 16px;
-  font-weight: 600;
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-bold);
   cursor: pointer;
-  color: #303133;
+  color: var(--color-text-primary);
 }
 
 .todo-title.completed {
   text-decoration: line-through;
-  color: #999;
-  font-weight: 500;
+  color: var(--color-text-tertiary);
+  font-weight: var(--font-weight-normal);
 }
 
-.ellipsis {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
 
 .todo-desc {
-  font-size: 13px;
-  color: #606266;
-}
-
-.clamp-2 {
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
 }
 
 .todo-meta {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
-  font-size: 12px;
-  color: #909399;
+  gap: var(--spacing-xs);
+  font-size: var(--font-size-sm);
+  color: var(--color-text-tertiary);
 }
 
 .todo-meta span {
-  background: #f5f7fa;
-  padding: 4px 8px;
-  border-radius: 6px;
+  background: var(--color-bg-secondary);
+  padding: var(--spacing-xs) var(--spacing-sm);
+  border-radius: var(--border-radius-sm);
 }
 
 .todo-actions {
   display: flex;
-  gap: 8px;
+  gap: var(--spacing-md);
   align-items: center;
 }
 
@@ -329,7 +317,7 @@ function isNearDeadline(item) {
 .todo-empty {
   padding: 48px 0;
   text-align: center;
-  color: #c0c4cc;
+  color: var(--color-text-tertiary);
 }
 
 @media (max-width: 768px) {
@@ -339,7 +327,7 @@ function isNearDeadline(item) {
 
   .todo-item {
     flex-direction: column;
-    gap: 8px;
+    gap: var(--spacing-md);
   }
 
   .todo-actions {
