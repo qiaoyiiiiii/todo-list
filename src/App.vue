@@ -96,6 +96,7 @@ import {
   getTodoTabCounts,
   getTodosByStatus,
 } from "./indexedDB";
+import { saveWithTransaction } from "./indexedDB";
 import TodoList from "./components/TodoList.vue";
 import TodoDialog from "./components/TodoDialog.vue";
 import { throttle, debounce, showError } from "./utils";
@@ -160,7 +161,6 @@ async function loadTodosForTab(tab = state.activeTab) {
     }
     state.currentTabTodos = list;
   } catch (e) {
-    // 使用统一错误提示
     showError(e, { defaultMsg: "加载失败" });
   } finally {
     state.loading = false;
@@ -176,20 +176,29 @@ function updateContainerHeight() {
   state.containerHeight = Math.max(260, Math.floor(h));
 }
 
-function sortTodos(list) {
-  const arr = [...list];
-  if (state.sortKey === "createdAtDesc") {
-    arr.sort((a, b) => (b.createdAt || "").localeCompare(a.createdAt || ""));
-  } else if (state.sortKey === "dueDateAsc") {
-    arr.sort((a, b) => {
+function createComparator(sortKey) {
+  return (a, b) => {
+    if (sortKey === "createdAtDesc") {
+      const timeA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+      const timeB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+      return timeB - timeA;
+    } else if (sortKey === "dueDateAsc") {
       if (!a.dueDate && !b.dueDate) return 0;
       if (!a.dueDate) return 1;
       if (!b.dueDate) return -1;
-      return a.dueDate.localeCompare(b.dueDate);
-    });
-  } else if (state.sortKey === "priorityDesc") {
-    arr.sort((a, b) => (b.priority || 0) - (a.priority || 0));
-  }
+      const timeA = new Date(a.dueDate).getTime();
+      const timeB = new Date(b.dueDate).getTime();
+      return timeA - timeB;
+    } else if (sortKey === "priorityDesc") {
+      return (b.priority || 0) - (a.priority || 0);
+    }
+    return 0;
+  };
+}
+
+function sortTodos(list) {
+  const arr = [...list];
+  arr.sort(createComparator(state.sortKey));
   return arr;
 }
 
@@ -304,9 +313,8 @@ async function confirmSave() {
   state.saving = true;
   try {
     const data = { ...state.editingTodo };
-    console.log(data);
-    await saveTodo(data);
-    await deleteDraft(state.isEditingExisting ? data.id : "new_todo");
+    const draftKey = state.isEditingExisting ? data.id : "new_todo";
+    await saveWithTransaction(data, draftKey);
 
     state.dialogVisible = false;
     state.editingTodo = null;

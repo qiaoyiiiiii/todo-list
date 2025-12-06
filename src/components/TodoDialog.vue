@@ -15,7 +15,7 @@
             v-model="todo.description"
             type="textarea"
             :rows="4"
-            placeholder="可选：补充一些说明，正在编辑时会自动本地保存"
+            placeholder="可选：补充一些说明"
           />
         </el-form-item>
         <el-form-item label="分类">
@@ -117,7 +117,7 @@ function handleSaveClick() {
     const now = new Date();
     const due = new Date(todo.dueDate);
     if (due.getTime() < now.getTime()) {
-      ElMessage.error("截止时间必须大于等于当前时间");
+      ElMessage.error("截止时间必须大于等于当前时间一分钟以上");
       return;
     }
   }
