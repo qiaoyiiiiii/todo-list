@@ -29,20 +29,6 @@
                 >
                   {{ item.title || "(未命名待办)" }}
                 </span>
-                <el-tag
-                  size="small"
-                  :type="
-                    item.status === 'done'
-                      ? 'success'
-                      : activeTab === 'expired'
-                      ? 'danger'
-                      : 'info'
-                  "
-                >
-                  <span v-if="item.status === 'done'">已完成</span>
-                  <span v-else-if="activeTab === 'expired'">已过期</span>
-                  <span v-else>待办</span>
-                </el-tag>
                 <el-tag v-if="item.category" size="small" type="warning">
                   {{ item.category }}
                 </el-tag>
@@ -262,6 +248,8 @@ function isNearDeadline(item) {
   flex-direction: column;
   gap: var(--spacing-xs);
   max-width: 70%;
+  height: 100%;
+  justify-content: space-between;
 }
 
 .todo-title-row {
@@ -283,7 +271,6 @@ function isNearDeadline(item) {
   color: var(--color-text-tertiary);
   font-weight: var(--font-weight-normal);
 }
-
 
 .todo-desc {
   font-size: var(--font-size-sm);
