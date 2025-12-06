@@ -76,7 +76,7 @@
 </template>
 
 <script setup>
-import "@/styles/common.css"; // 新增：引入公共样式
+import "@/styles/common.css";
 import {
   reactive,
   computed,
