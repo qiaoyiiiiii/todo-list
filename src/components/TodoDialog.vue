@@ -49,7 +49,7 @@
           <el-date-picker
             v-model="todo.dueDate"
             type="datetime"
-            placeholder="可选：选择截止时间"
+            placeholder="需大于当前时间一分钟以上"
           />
         </el-form-item>
       </el-form>

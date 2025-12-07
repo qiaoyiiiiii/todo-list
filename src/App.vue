@@ -125,7 +125,6 @@ const state = reactive({
 
 const listContainerRef = ref(null);
 let resizeHandler = null;
-let expireTimer = null;
 let visibilityHandler = null;
 
 const distinctCategories = computed(() => {
@@ -322,16 +321,12 @@ async function confirmSave() {
     state.isEditingExisting = false;
     await refreshTabCounts();
     await loadTodosForTab(state.activeTab);
-    // 保存后更新/调度提醒
+
     try {
       reminder.update(data);
     } catch (e) {
       showError(e, { defaultMsg: "更新提醒失败" });
     }
-    // 新增：保存后重新调度到期检查
-    scheduleNextExpireCheck().catch((err) =>
-      showError(err, { defaultMsg: "调度到期检查失败" })
-    );
 
     ElMessage.success("保存成功");
   } catch (e) {
@@ -363,9 +358,6 @@ async function handleDelete(row) {
     await deleteDraft(row.id);
     await refreshTabCounts();
     await loadTodosForTab(state.activeTab);
-    scheduleNextExpireCheck().catch((err) =>
-      showError(err, { defaultMsg: "调度到期检查失败" })
-    );
     ElMessage.success("已删除");
   } catch (e) {
     showError(e, { defaultMsg: "删除失败" });
@@ -406,16 +398,18 @@ async function toggleComplete(row) {
     await saveTodo(copy);
     await refreshTabCounts();
     await loadTodosForTab(state.activeTab);
-    scheduleNextExpireCheck().catch((err) =>
-      showError(err, { defaultMsg: "调度到期检查失败" })
-    );
-    ElMessage.success("已更新状态");
+
     try {
-      if (copy.status === "done") reminder.remove(copy.id);
-      else reminder.update(copy);
+      if (copy.status === "done") {
+        reminder.remove(copy.id);
+      } else {
+        reminder.update(copy);
+      }
     } catch (e) {
       showError(e, { defaultMsg: "更新提醒调度失败" });
     }
+
+    ElMessage.success("已更新状态");
   } catch (e) {
     showError(e, { defaultMsg: "更新失败" });
   }
@@ -463,41 +457,11 @@ async function checkAndRefreshExpired() {
   }
 }
 
-async function scheduleNextExpireCheck() {
-  if (expireTimer) {
-    clearTimeout(expireTimer);
-    expireTimer = null;
-  }
-
+async function onTodoExpire(todoId) {
   try {
-    const list = await getTodosByStatus("todo").catch(() => []);
-    const now = Date.now();
-    const ONE_DAY = 24 * 60 * 60 * 1000;
-    let nextTs = null;
-    for (const t of list) {
-      if (t && t.dueDate) {
-        const ts = new Date(t.dueDate).getTime();
-        if (!isNaN(ts) && ts > now && ts - now <= ONE_DAY) {
-          if (nextTs === null || ts < nextTs) nextTs = ts;
-        }
-      }
-    }
-
-    if (nextTs === null) {
-      return;
-    }
-
-    const delay = Math.max(500, nextTs - now + 1000);
-
-    expireTimer = setTimeout(async () => {
-      expireTimer = null;
-      if (!document.hidden) {
-        await checkAndRefreshExpired();
-      }
-      scheduleNextExpireCheck();
-    }, delay);
+    await checkAndRefreshExpired();
   } catch (e) {
-    showError(e, { defaultMsg: "调度到期检查失败" });
+    showError(e, { defaultMsg: "任务过期更新失败" });
   }
 }
 
@@ -513,19 +477,15 @@ onMounted(() => {
     visibilityHandler = () => {
       if (!document.hidden) {
         checkAndRefreshExpired().catch(() => {});
-        scheduleNextExpireCheck().catch(() => {});
       }
     };
     document.addEventListener("visibilitychange", visibilityHandler);
-
-    scheduleNextExpireCheck().catch((err) =>
-      showError(err, { defaultMsg: "调度到期检查失败" })
-    );
   } catch (e) {
-    showError(e, { defaultMsg: "启动到期检查失败" });
+    showError(e, { defaultMsg: "启动可见性检查失败" });
   }
 
   try {
+    reminder.setOnExpireCallback(onTodoExpire);
     getAllTodos()
       .then((all) => {
         if (Array.isArray(all)) reminder.init(all);
@@ -539,10 +499,6 @@ onMounted(() => {
 onUnmounted(() => {
   if (resizeHandler) {
     window.removeEventListener("resize", resizeHandler);
-  }
-  if (expireTimer) {
-    clearTimeout(expireTimer);
-    expireTimer = null;
   }
   if (visibilityHandler) {
     document.removeEventListener("visibilitychange", visibilityHandler);

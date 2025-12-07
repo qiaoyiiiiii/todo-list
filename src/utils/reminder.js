@@ -2,6 +2,7 @@ import { ElNotification } from "element-plus";
 
 const TEN_MIN_MS = 10 * 60 * 1000;
 const timers = new Map();
+let onExpireCallback = null;
 
 function notifyTodo(todo) {
   try {
@@ -14,7 +15,7 @@ function notifyTodo(todo) {
       duration: 6000,
     });
   } catch (e) {
-    console.warn("notifyTodo error", e);
+    console.warn("任务到期提示失败", e);
   }
 }
 
@@ -35,30 +36,39 @@ function scheduleTodo(todo) {
   const dueMs = new Date(todo.dueDate).getTime();
   const now = Date.now();
   const diff = dueMs - now;
-  if (diff <= 0) return; // already passed
+  if (diff <= 0) return;
 
   const notifyDelay = diff - TEN_MIN_MS;
   if (notifyDelay <= 0) {
     notifyTodo(todo);
-    return;
+  } else {
+    const notifyTimer = setTimeout(() => {
+      try {
+        notifyTodo(todo);
+      } finally {
+        timers.delete(`notify_${todo.id}`);
+      }
+    }, notifyDelay);
+    timers.set(`notify_${todo.id}`, notifyTimer);
   }
 
-  const t = setTimeout(() => {
-    try {
-      notifyTodo(todo);
-    } finally {
-      timers.delete(todo.id);
+  const expireDelay = diff + 500;
+  const expireTimer = setTimeout(() => {
+    timers.delete(`expire_${todo.id}`);
+    if (onExpireCallback) {
+      try {
+        onExpireCallback(todo.id);
+      } catch (e) {
+        console.warn("到期回调错误", e);
+      }
     }
-  }, notifyDelay);
-
-  timers.set(todo.id, t);
+  }, expireDelay);
+  timers.set(`expire_${todo.id}`, expireTimer);
 }
 
 function init(todos = []) {
   clearAll();
   (todos || []).forEach(scheduleTodo);
-  // also attempt to resync timers periodically (handles sleep/wake)
-  // we keep a short interval to reschedule in case of clock changes
   if (!init._resync) {
     init._resync = setInterval(() => {
       (todos || []).forEach(scheduleTodo);
@@ -71,13 +81,20 @@ function add(todo) {
 }
 
 function update(todo) {
-  // clear and reschedule according to latest data
   clearTimer(todo.id);
+  clearTimer(`notify_${todo.id}`);
+  clearTimer(`expire_${todo.id}`);
   scheduleTodo(todo);
 }
 
 function remove(id) {
   clearTimer(id);
+  clearTimer(`notify_${id}`);
+  clearTimer(`expire_${id}`);
+}
+
+function setOnExpireCallback(callback) {
+  onExpireCallback = callback;
 }
 
 function clearAll() {
@@ -94,5 +111,6 @@ export default {
   add,
   update,
   remove,
-  clearAll
+  clearAll,
+  setOnExpireCallback,
 };
