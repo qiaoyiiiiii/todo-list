@@ -9,7 +9,7 @@
     <div v-if="todo">
       <el-form label-width="90px" :model="todo">
         <el-form-item label="标题" required>
-          <el-input v-model="todo.title" placeholder="请输入标题" clearable />
+          <el-input v-model="todo.title" placeholder="请输入标题" clearable :readonly="isViewMode" />
         </el-form-item>
         <el-form-item label="描述">
           <el-input
@@ -17,6 +17,7 @@
             type="textarea"
             :rows="4"
             placeholder="可选：补充一些说明"
+            :readonly="isViewMode"
           />
         </el-form-item>
         <el-form-item label="分类">
@@ -27,6 +28,7 @@
             clearable
             default-first-option
             placeholder="选择或输入分类，如 工作 / 学习 / 生活"
+            :disabled="isViewMode"
           >
             <el-option
               v-for="c in distinctCategories"
@@ -43,6 +45,7 @@
             :max="5"
             :step="1"
             show-stops
+            :disabled="isViewMode"
           />
         </el-form-item>
         <el-form-item label="截止时间">
@@ -50,6 +53,7 @@
             v-model="todo.dueDate"
             type="datetime"
             placeholder="需大于当前时间一分钟以上"
+            :disabled="isViewMode"
           />
         </el-form-item>
       </el-form>
@@ -60,7 +64,7 @@
     <template #footer>
       <span class="dialog-footer">
         <el-button @click="handleClose">取 消</el-button>
-        <el-button type="primary" :loading="saving" @click="handleSaveClick">
+        <el-button v-if="!isViewMode" type="primary" :loading="saving" @click="handleSaveClick">
           保 存
         </el-button>
       </span>
@@ -96,6 +100,11 @@ const props = defineProps({
 });
 
 const emit = defineEmits(["update:modelValue", "save", "close"]);
+
+// 添加判断是否为查看模式（当任务已完成时）
+const isViewMode = computed(() => {
+  return props.todo && props.todo.status === 'done';
+});
 
 const visible = computed({
   get() {

@@ -57,11 +57,10 @@
             </div>
             <div class="todo-actions">
               <el-button
-                v-if="item.status !== 'done'"
                 size="small"
                 @click="$emit('edit', item)"
               >
-                编辑
+                {{ item.status === 'done' ? '查看' : '编辑' }}
               </el-button>
               <el-button
                 size="small"
