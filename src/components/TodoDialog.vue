@@ -5,6 +5,7 @@
     width="600px"
     @close="handleClose"
   >
+    <el-divider content-position="left">点击<strong style="color:#f56c6c">esc</strong>清空所有内容</el-divider>
     <div v-if="todo">
       <el-form label-width="90px" :model="todo">
         <el-form-item label="标题" required>
@@ -53,8 +54,7 @@
         </el-form-item>
       </el-form>
       <div style="font-size: 12px; color: #909399; margin-top: 8px">
-        编辑内容会自动定时保存到 IndexedDB，本地刷新/断网不丢失<br />
-        点击esc清空所有内容
+        编辑内容会自动定时保存到 IndexedDB，本地刷新/断网不丢失
       </div>
     </div>
     <template #footer>
@@ -166,3 +166,9 @@ onUnmounted(() => {
   document.removeEventListener("keydown", onKeydownEsc, true);
 });
 </script>
+
+<style scoped>
+.el-divider--horizontal {
+  margin: 0 0 var(--spacing-xl) 0;
+}
+</style>
