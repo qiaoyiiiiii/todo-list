@@ -3,6 +3,7 @@
     <div class="todo-header">
       <div class="todo-header-title">
         <span>TODO List</span>
+        <el-button @click="importData">导入数据</el-button>
       </div>
       <el-button type="primary" @click="openCreateDialog"> 新建待办 </el-button>
     </div>
@@ -102,6 +103,7 @@ import TodoList from "./components/TodoList.vue";
 import TodoDialog from "./components/TodoDialog.vue";
 import { throttle, debounce, showError } from "./utils";
 import reminder from "./utils/reminder";
+import { runImport } from "./utils/importData";
 
 const state = reactive({
   loading: false,
@@ -505,6 +507,18 @@ onUnmounted(() => {
     visibilityHandler = null;
   }
 });
+async function importData() {
+  try {
+    await runImport();
+    ElMessage.success("数据导入成功！");
+    // 导入完成后刷新显示
+    await loadTodos();
+    await refreshTabCounts();
+  } catch (e) {
+    showError(e, { defaultMsg: "数据导入失败" });
+  }
+}
+
 </script>
 
 <style scoped>

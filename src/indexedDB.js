@@ -3,7 +3,7 @@ const DB_VERSION = 1;
 const TODO_STORE = "todos";
 const DRAFT_STORE = "drafts";
 
-function openDB() {
+export function openDB() {
   return new Promise((resolve, reject) => {
     const request = indexedDB.open(DB_NAME, DB_VERSION);
 
@@ -155,7 +155,7 @@ export function saveWithTransaction(data, draftId) {
           // 执行写入与删除
           todoStore.put(data);
           console.log(draftId);
-          
+
           draftStore.delete(draftId);
 
           tx.oncomplete = () => {
@@ -181,7 +181,6 @@ export function saveWithTransaction(data, draftId) {
       })
   );
 }
-
 
 export function getTodosByStatus(status) {
   return withStore(TODO_STORE, "readonly", (store) => {
