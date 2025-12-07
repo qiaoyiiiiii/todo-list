@@ -24,7 +24,7 @@
               <div class="todo-title-row">
                 <span
                   class="todo-title ellipsis"
-                  :class="{ completed: item.status === 'done' }"
+                  :class="{ completed: activeTab === 'done',expired: activeTab === 'expired'}"
                   @click="$emit('edit', item)"
                 >
                   {{ item.title || "(未命名待办)" }}
@@ -268,6 +268,11 @@ function isNearDeadline(item) {
 .todo-title.completed {
   text-decoration: line-through;
   color: var(--color-text-tertiary);
+  font-weight: var(--font-weight-normal);
+}
+
+.todo-title.expired {
+  color: var(--color-danger);
   font-weight: var(--font-weight-normal);
 }
 

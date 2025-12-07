@@ -486,7 +486,7 @@ onMounted(() => {
 
   try {
     reminder.setOnExpireCallback(onTodoExpire);
-    getAllTodos()
+    loadTodosForTab("todo")
       .then((all) => {
         if (Array.isArray(all)) reminder.init(all);
       })

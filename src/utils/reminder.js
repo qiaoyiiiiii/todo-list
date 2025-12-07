@@ -69,11 +69,6 @@ function scheduleTodo(todo) {
 function init(todos = []) {
   clearAll();
   (todos || []).forEach(scheduleTodo);
-  if (!init._resync) {
-    init._resync = setInterval(() => {
-      (todos || []).forEach(scheduleTodo);
-    }, 30 * 1000);
-  }
 }
 
 function add(todo) {
@@ -100,10 +95,6 @@ function setOnExpireCallback(callback) {
 function clearAll() {
   timers.forEach((t) => clearTimeout(t));
   timers.clear();
-  if (init._resync) {
-    clearInterval(init._resync);
-    init._resync = null;
-  }
 }
 
 export default {
